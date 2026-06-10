@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clarity — Tes vidéos TikTok, sans compression</title>
+<meta name="description" content="Clarity patche tes vidéos en local pour que TikTok arrête de massacrer la qualité. Dépose ton MP4, clique sur Patch, poste en pleine définition.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#04060E;
+  --bg-soft:#0a0e1a;
+  --panel:rgba(255,255,255,0.04);
+  --panel-border:rgba(120,160,255,0.12);
+  --text:#EAF0FF;
+  --muted:#93A1C4;
+  --faint:#566089;
+  --violet:#2E6BFF;
+  --cyan:#37D4FF;
+  --pink:#1E4FE0;
+  --grad:linear-gradient(120deg,#37D4FF 0%,#2E6BFF 55%,#1E4FE0 100%);
+  --sans:'Space Grotesk',system-ui,sans-serif;
+  --body:'Inter',system-ui,sans-serif;
+  --mono:'JetBrains Mono',monospace;
+  --maxw:1120px;
+  --r:18px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--body);
+  line-height:1.6;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:rgba(124,92,255,0.4);color:#fff}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+
+/* ---------- animated ambient background ---------- */
+.bg-fx{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;animation:drift 22s ease-in-out infinite}
+.blob.a{width:520px;height:520px;background:#2E6BFF;top:-160px;left:-120px}
+.blob.b{width:460px;height:460px;background:#37D4FF;top:30%;right:-160px;animation-delay:-7s}
+.blob.c{width:400px;height:400px;background:#1E4FE0;bottom:-160px;left:30%;animation-delay:-13s}
+@keyframes drift{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(60px,-50px) scale(1.12)}66%{transform:translate(-40px,40px) scale(.92)}}
+.grid-fx{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+  background-size:46px 46px;
+  mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,#000 30%,transparent 75%);
+  -webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,#000 30%,transparent 75%);}
+
+/* ---------- layout ---------- */
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px;position:relative;z-index:2}
+section{position:relative;z-index:2}
+
+/* ---------- nav ---------- */
+nav{position:fixed;top:0;left:0;right:0;z-index:50;transition:all .35s ease}
+.nav-inner{max-width:var(--maxw);margin:14px auto;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;
+  border:1px solid transparent;border-radius:16px;transition:all .35s ease}
+nav.scrolled .nav-inner{background:rgba(10,10,22,.72);backdrop-filter:blur(16px);border-color:var(--panel-border);box-shadow:0 8px 40px rgba(0,0,0,.4)}
+.logo{display:flex;align-items:center;gap:10px;font-family:var(--sans);font-weight:700;font-size:19px;letter-spacing:-.02em}
+.logo-mark{width:30px;height:30px;border-radius:9px;background:var(--grad);display:grid;place-items:center;box-shadow:0 0 22px rgba(46,107,255,.6)}
+.logo-mark svg{width:17px;height:17px;color:#0a0a14}
+.nav-links{display:flex;gap:30px;align-items:center;font-size:14px;font-weight:500}
+.nav-links a{color:var(--muted);transition:color .2s}
+.nav-links a:hover{color:var(--text)}
+.nav-cta{font-family:var(--sans);font-weight:600;font-size:14px;padding:9px 18px;border-radius:11px;background:var(--text);color:#0a0a14;transition:transform .2s,box-shadow .2s}
+.nav-cta:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(255,255,255,.15)}
+.burger{display:none;background:none;border:0;color:var(--text);cursor:pointer}
+
+/* ---------- buttons ---------- */
+.btn{font-family:var(--sans);font-weight:600;border:0;cursor:pointer;border-radius:13px;display:inline-flex;align-items:center;gap:10px;
+  transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .25s;font-size:16px;padding:15px 26px}
+.btn svg{width:19px;height:19px}
+.btn-primary{background:var(--grad);color:#04101f;position:relative;background-size:200% 200%;animation:gradShift 6s ease infinite;box-shadow:0 10px 40px rgba(46,107,255,.45)}
+@keyframes gradShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.btn-primary:hover{transform:translateY(-3px) scale(1.02);box-shadow:0 16px 50px rgba(46,107,255,.65)}
+.btn-ghost{background:var(--panel);color:var(--text);border:1px solid var(--panel-border);backdrop-filter:blur(10px)}
+.btn-ghost:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.07)}
+
+/* ---------- hero ---------- */
+.hero{padding:170px 0 90px;text-align:center}
+.badge{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;
+  padding:7px 15px;border-radius:30px;border:1px solid var(--panel-border);background:var(--panel);color:var(--muted);margin-bottom:28px;backdrop-filter:blur(8px)}
+.badge .pulse{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px var(--cyan);animation:pulse 1.8s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.hero h1{font-family:var(--sans);font-weight:700;font-size:clamp(40px,7vw,76px);line-height:1.02;letter-spacing:-.03em;margin-bottom:24px}
+.hero h1 .g{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;background-size:200% 200%;animation:gradShift 6s ease infinite}
+.hero p.sub{font-size:clamp(16px,2vw,20px);color:var(--muted);max-width:620px;margin:0 auto 38px}
+.hero-cta{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:18px}
+.hero-meta{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;font-size:13.5px;color:var(--faint);font-family:var(--mono)}
+.hero-meta span{display:inline-flex;align-items:center;gap:7px}
+.hero-meta svg{width:15px;height:15px;color:var(--cyan)}
+
+/* ---------- app preview ---------- */
+.preview{margin-top:70px;perspective:1600px}
+.preview-card{max-width:880px;margin:0 auto;border-radius:22px;border:1px solid var(--panel-border);
+  background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));backdrop-filter:blur(14px);
+  box-shadow:0 40px 120px rgba(0,0,0,.6);overflow:hidden;transform:rotateX(8deg);transition:transform .6s ease}
+.preview-card:hover{transform:rotateX(0deg)}
+.win-bar{display:flex;align-items:center;gap:8px;padding:13px 18px;border-bottom:1px solid var(--panel-border);background:rgba(0,0,0,.25)}
+.win-dot{width:11px;height:11px;border-radius:50%}
+.win-title{margin-left:14px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+.app-body{padding:34px 30px 40px;display:flex;flex-direction:column;gap:14px}
+.drop{border:1.5px dashed rgba(120,160,255,.28);border-radius:14px;padding:30px;text-align:center;color:var(--muted);font-size:15px;transition:.3s;cursor:pointer}
+.drop b{color:var(--cyan)}
+.drop:hover{border-color:rgba(55,212,255,.5);background:rgba(55,212,255,.05)}
+.drop.drag{border-color:var(--cyan);background:rgba(55,212,255,.1);color:var(--text)}
+.drop.has{border-style:solid;border-color:rgba(55,212,255,.5);background:rgba(55,212,255,.06);color:var(--text)}
+.app-row{display:flex;align-items:center;justify-content:space-between;gap:14px;background:var(--panel);border:1px solid var(--panel-border);border-radius:12px;padding:12px 18px}
+.app-row .lab{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.app-row .val{font-family:var(--mono);font-size:13px;color:var(--cyan);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%}
+.fps-input{width:90px;background:rgba(255,255,255,.06);border:1px solid var(--panel-border);border-radius:8px;color:var(--cyan);
+  font-family:var(--mono);font-size:13px;text-align:center;padding:7px 8px;outline:none}
+.fps-input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(55,212,255,.18)}
+.patch-btn{background:var(--grad);color:#04101f;font-family:var(--sans);font-weight:700;border:0;border-radius:12px;padding:15px;font-size:16px;cursor:pointer;background-size:200% 200%;animation:gradShift 6s ease infinite;transition:transform .2s,filter .2s;display:flex;align-items:center;justify-content:center;gap:9px}
+.patch-btn svg{width:18px;height:18px}
+.patch-btn:hover:not(:disabled){transform:translateY(-2px);filter:brightness(1.08)}
+.patch-btn:disabled{opacity:.45;cursor:not-allowed;animation:none;filter:grayscale(.4)}
+.patch-status{min-height:20px;text-align:center;font-family:var(--mono);font-size:12.5px;transition:.3s}
+.patch-status.ok{color:var(--cyan)}
+.patch-status.err{color:#FF6B6B}
+.patch-status.work{color:var(--muted)}
+.app-credit{text-align:center;font-size:13px;color:var(--faint);margin-top:2px}
+.app-credit .h{color:#FF5C8A}
+
+/* ---------- section heading ---------- */
+.sec{padding:90px 0}
+.eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);margin-bottom:14px;text-align:center}
+.sec h2{font-family:var(--sans);font-weight:700;font-size:clamp(30px,4.5vw,48px);letter-spacing:-.025em;text-align:center;line-height:1.1;margin-bottom:16px}
+.sec .lead{text-align:center;color:var(--muted);max-width:600px;margin:0 auto 56px;font-size:17px}
+
+/* ---------- before/after slider ---------- */
+.compare{max-width:760px;margin:0 auto;border-radius:20px;overflow:hidden;position:relative;border:1px solid var(--panel-border);
+  aspect-ratio:16/10;cursor:ew-resize;user-select:none;box-shadow:0 30px 90px rgba(0,0,0,.5)}
+.compare .layer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+.layer.after{background:radial-gradient(circle at 50% 40%,#0f2a52,#06101f)}
+.layer.before{background:radial-gradient(circle at 50% 40%,#1a2236,#0a0e16);clip-path:inset(0 50% 0 0)}
+.layer .tag{font-family:var(--mono);font-size:13px;letter-spacing:.1em;padding:6px 13px;border-radius:8px;backdrop-filter:blur(6px)}
+.after .tag{background:rgba(55,212,255,.15);color:var(--cyan);border:1px solid rgba(55,212,255,.4)}
+.before .tag{background:rgba(147,161,196,.15);color:var(--muted);border:1px solid rgba(147,161,196,.35)}
+.layer .q{font-family:var(--sans);font-weight:700;font-size:clamp(26px,4vw,42px)}
+.after .q{color:#fff;text-shadow:0 0 30px rgba(55,212,255,.5)}
+.before .q{color:#fff;filter:blur(3px) contrast(.8);opacity:.85}
+.layer .sm{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.before .sm{filter:blur(1.5px)}
+.handle{position:absolute;top:0;bottom:0;left:50%;width:3px;background:var(--grad);transform:translateX(-50%);z-index:5}
+.handle .knob{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:44px;height:44px;border-radius:50%;
+  background:#0a0a14;border:2px solid #fff;display:grid;place-items:center;box-shadow:0 6px 24px rgba(0,0,0,.6)}
+.handle .knob svg{width:22px;height:22px;color:#fff}
+.compare-cap{text-align:center;font-size:13.5px;color:var(--faint);margin-top:18px;font-family:var(--mono)}
+
+/* ---------- features ---------- */
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.feat{padding:30px;border-radius:var(--r);border:1px solid var(--panel-border);background:var(--panel);backdrop-filter:blur(10px);
+  position:relative;overflow:hidden;transition:transform .35s,border-color .35s}
+.feat::before{content:"";position:absolute;inset:0;background:radial-gradient(400px circle at var(--mx,50%) var(--my,0%),rgba(46,107,255,.16),transparent 60%);opacity:0;transition:opacity .35s}
+.feat:hover{transform:translateY(-6px);border-color:rgba(46,107,255,.45)}
+.feat:hover::before{opacity:1}
+.feat-ico{width:48px;height:48px;border-radius:13px;display:grid;place-items:center;margin-bottom:18px;background:rgba(46,107,255,.14);border:1px solid rgba(46,107,255,.3)}
+.feat-ico svg{width:24px;height:24px;color:var(--cyan)}
+.feat h3{font-family:var(--sans);font-weight:600;font-size:19px;margin-bottom:9px}
+.feat p{color:var(--muted);font-size:14.5px}
+
+/* ---------- steps ---------- */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;counter-reset:s}
+.step{position:relative;padding:32px 26px;border-radius:var(--r);border:1px solid var(--panel-border);background:var(--panel);backdrop-filter:blur(10px)}
+.step .num{font-family:var(--sans);font-weight:700;font-size:15px;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;
+  background:var(--grad);color:#080810;margin-bottom:18px}
+.step h3{font-family:var(--sans);font-weight:600;font-size:19px;margin-bottom:8px}
+.step p{color:var(--muted);font-size:14.5px}
+
+/* ---------- download ---------- */
+.dl-card{max-width:760px;margin:0 auto;text-align:center;padding:56px 40px;border-radius:26px;
+  border:1px solid var(--panel-border);background:linear-gradient(180deg,rgba(46,107,255,.14),rgba(255,255,255,.02));
+  backdrop-filter:blur(16px);position:relative;overflow:hidden}
+.dl-card::after{content:"";position:absolute;width:420px;height:420px;border-radius:50%;background:var(--violet);filter:blur(110px);opacity:.25;top:-200px;left:50%;transform:translateX(-50%)}
+.dl-card h2{position:relative}
+.dl-os{display:flex;gap:14px;justify-content:center;margin:30px 0 20px;flex-wrap:wrap;position:relative}
+.os-pill{font-family:var(--mono);font-size:13px;padding:9px 16px;border-radius:10px;border:1px solid var(--panel-border);background:var(--panel);color:var(--muted);display:inline-flex;align-items:center;gap:8px}
+.os-pill svg{width:16px;height:16px}
+.os-pill.soon{opacity:.5}
+.dl-note{font-size:13px;color:var(--faint);margin-top:18px;font-family:var(--mono);position:relative}
+
+/* ---------- faq ---------- */
+.faq-list{max-width:740px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.faq{border:1px solid var(--panel-border);border-radius:14px;background:var(--panel);overflow:hidden}
+.faq button{width:100%;text-align:left;background:none;border:0;color:var(--text);font-family:var(--sans);font-weight:600;font-size:16.5px;
+  padding:20px 22px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:16px}
+.faq button svg{width:20px;height:20px;color:var(--muted);transition:transform .3s;flex-shrink:0}
+.faq.open button svg{transform:rotate(45deg)}
+.faq .ans{max-height:0;overflow:hidden;transition:max-height .35s ease}
+.faq .ans p{padding:0 22px 22px;color:var(--muted);font-size:15px}
+
+/* ---------- footer ---------- */
+footer{padding:60px 0 50px;border-top:1px solid var(--panel-border);margin-top:60px;text-align:center;position:relative;z-index:2}
+.foot-logo{justify-content:center;margin-bottom:18px}
+footer .made{color:var(--faint);font-size:14px}
+footer .made .h{color:var(--pink)}
+footer .disclaimer{color:var(--faint);font-size:12px;max-width:560px;margin:22px auto 0;line-height:1.7;font-family:var(--mono)}
+
+/* ---------- reveal ---------- */
+.reveal{opacity:0;transform:translateY(34px);transition:opacity .7s ease,transform .7s cubic-bezier(.22,1,.36,1)}
+.reveal.in{opacity:1;transform:none}
+
+/* ---------- responsive ---------- */
+@media(max-width:860px){
+  .nav-links{display:none}
+  .burger{display:block}
+  .feat-grid,.steps{grid-template-columns:1fr}
+  .preview-card{transform:none}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  .reveal{opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+
+<div class="bg-fx"><div class="blob a"></div><div class="blob b"></div><div class="blob c"></div></div>
+<div class="grid-fx"></div>
+
+<!-- NAV -->
+<nav id="nav">
+  <div class="nav-inner">
+    <a href="#" class="logo">
+      <span class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+      Clarity
+    </a>
+    <div class="nav-links">
+      <a href="#features">Fonctions</a>
+      <a href="#how">Comment ça marche</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <a href="#tool" class="nav-cta">Patcher</a>
+    <button class="burger" aria-label="Menu" onclick="document.querySelector('.nav-links').style.display='flex'"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero wrap">
+  <div class="badge reveal"><span class="pulse"></span> 100% local · aucune donnée envoyée</div>
+  <h1 class="reveal">Tes vidéos TikTok,<br><span class="g">sans la compression.</span></h1>
+  <p class="sub reveal">Clarity patche tes fichiers directement sur ton PC. Tu déposes ton MP4, tu cliques sur <b>Patch</b>, et tu postes en pleine qualité — TikTok arrête de tout flouter.</p>
+  <div class="hero-cta reveal">
+    <a href="#tool" class="btn btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Patcher ma vidéo</a>
+    <a href="#how" class="btn btn-ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>Comment ça marche</a>
+  </div>
+  <div class="hero-meta reveal">
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Aucun téléchargement</span>
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Directement dans le navigateur</span>
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>Patch en 1 clic</span>
+  </div>
+
+  <!-- PATCHER LIVE -->
+  <div class="preview reveal" id="tool">
+    <div class="preview-card">
+      <div class="win-bar">
+        <span class="win-dot" style="background:#ff5f57"></span>
+        <span class="win-dot" style="background:#febc2e"></span>
+        <span class="win-dot" style="background:#28c840"></span>
+        <span class="win-title">Clarity — MP4 → 30 FPS Patch</span>
+      </div>
+      <div class="app-body">
+        <div class="drop" id="drop">Déposez votre fichier MP4 ici ou <b>Parcourir</b></div>
+        <input type="file" id="fileInput" accept="video/mp4,video/quicktime,.mp4,.mov" hidden>
+        <div class="app-row"><span class="lab">Fichier</span><span class="val" id="fileName">—</span></div>
+        <div class="app-row"><span class="lab">FPS source</span><input class="fps-input" id="fpsInput" type="number" value="60" min="1" max="240" step="1"></div>
+        <button class="patch-btn" id="patchBtn" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Patch → 30 FPS
+        </button>
+        <div class="patch-status" id="patchStatus"></div>
+        <div class="app-credit">Tout se passe sur ton PC · Créé avec <span class="h">♥</span> par Esquie</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BEFORE/AFTER -->
+<section class="sec wrap" id="quality">
+  <div class="eyebrow reveal">La différence</div>
+  <h2 class="reveal">Glisse pour comparer</h2>
+  <p class="lead reveal">À gauche, une vidéo recompressée par TikTok. À droite, la même vidéo patchée avec Clarity.</p>
+  <div class="compare reveal" id="compare">
+    <div class="layer after">
+      <span class="tag">AVEC CLARITY</span>
+      <span class="q">Net &amp; précis</span>
+      <span class="sm">1080p · bitrate préservé</span>
+    </div>
+    <div class="layer before" id="beforeLayer">
+      <span class="tag">SANS CLARITY</span>
+      <span class="q">Flou &amp; baveux</span>
+      <span class="sm">recompressé par TikTok</span>
+    </div>
+    <div class="handle" id="handle"><span class="knob"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/><polyline points="9 6 15 12 9 18" transform="translate(0,0)"/></svg></span></div>
+  </div>
+  <p class="compare-cap reveal">↔ Glisse le curseur pour voir la qualité gagnée</p>
+</section>
+
+<!-- FEATURES -->
+<section class="sec wrap" id="features">
+  <div class="eyebrow reveal">Fonctions</div>
+  <h2 class="reveal">Simple. Local. Efficace.</h2>
+  <p class="lead reveal">Tout se passe sur ta machine. Pas de cloud, pas de compte, pas d'attente.</p>
+  <div class="feat-grid">
+    <div class="feat reveal">
+      <div class="feat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+      <h3>Glissé-déposé</h3>
+      <p>Dépose ton MP4 dans la fenêtre ou clique sur Parcourir. Aucune config compliquée.</p>
+    </div>
+    <div class="feat reveal">
+      <div class="feat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+      <h3>Patch en 1 clic</h3>
+      <p>Un seul bouton. Clarity ré-encode ta vidéo dans un format que TikTok ne recompresse pas.</p>
+    </div>
+    <div class="feat reveal">
+      <div class="feat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div>
+      <h3>Choix du FPS</h3>
+      <p>Force le framerate de ton choix (24, 30, 60…) pour un rendu fluide et stable à l'upload.</p>
+    </div>
+    <div class="feat reveal">
+      <div class="feat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+      <h3>100% privé</h3>
+      <p>Tes vidéos ne quittent jamais ton PC. Aucun serveur, aucune collecte, aucun tracking.</p>
+    </div>
+    <div class="feat reveal">
+      <div class="feat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+      <h3>Rapide</h3>
+      <p>Le patch se fait en quelques secondes selon la durée du clip. Tu enregistres et tu postes.</p>
+    </div>
+    <div class="feat reveal">
+      <div class="feat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+      <h3>Qualité préservée</h3>
+      <p>Bitrate, résolution et netteté intacts. Ce que tu vois à l'écran, c'est ce que tu postes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- HOW -->
+<section class="sec wrap" id="how">
+  <div class="eyebrow reveal">Comment ça marche</div>
+  <h2 class="reveal">3 étapes, c'est tout</h2>
+  <p class="lead reveal">Pas de tuto de 20 minutes. Tu télécharges, tu patches, tu postes.</p>
+  <div class="steps">
+    <div class="step reveal">
+      <div class="num">1</div>
+      <h3>Dépose ton MP4</h3>
+      <p>Directement sur le site, glisse ta vidéo dans la zone ou clique pour parcourir.</p>
+    </div>
+    <div class="step reveal">
+      <div class="num">2</div>
+      <h3>Clique sur Patch</h3>
+      <p>Choisis ton FPS et lance le patch. Clarity ré-encode et t'enregistre la version optimisée.</p>
+    </div>
+    <div class="step reveal">
+      <div class="num">3</div>
+      <h3>Poste sur TikTok</h3>
+      <p>Upload la vidéo patchée. La compression de TikTok n'a presque plus aucun effet.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CTA FINAL -->
+<section class="sec wrap" id="download">
+  <div class="dl-card reveal">
+    <div class="eyebrow">Prêt ?</div>
+    <h2>Patche ta vidéo maintenant</h2>
+    <p class="lead" style="margin-bottom:0">Aucun téléchargement, aucune installation. Tout se passe ici, dans ton navigateur, sur ton PC.</p>
+    <a href="#tool" class="btn btn-primary" style="margin-top:26px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      Ouvrir le patcher
+    </a>
+    <p class="dl-note">100% local · Créé avec ♥ par Esquie</p>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="sec wrap" id="faq">
+  <div class="eyebrow reveal">FAQ</div>
+  <h2 class="reveal">Questions fréquentes</h2>
+  <div class="faq-list" style="margin-top:46px">
+    <div class="faq reveal"><button>Est-ce que mes vidéos sont envoyées quelque part ?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button><div class="ans"><p>Non. Clarity fonctionne entièrement en local sur ton PC. Aucune vidéo, aucun fichier et aucune donnée ne sont envoyés sur internet.</p></div></div>
+    <div class="faq reveal"><button>Pourquoi TikTok compresse mes vidéos ?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button><div class="ans"><p>TikTok ré-encode automatiquement chaque upload pour réduire la taille des fichiers. Clarity prépare ta vidéo dans un format qui limite fortement cette recompression.</p></div></div>
+    <div class="faq reveal"><button>Quels formats sont supportés ?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button><div class="ans"><p>Les fichiers MP4 (et MOV/QuickTime). Tu peux régler le FPS cible avant de patcher.</p></div></div>
+    <div class="faq reveal"><button>Est-ce que c'est gratuit ?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button><div class="ans"><p>Oui, totalement gratuit et sans inscription. Dépose, patche, poste.</p></div></div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap">
+    <div class="logo foot-logo">
+      <span class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+      Clarity
+    </div>
+    <p class="made">Créé avec <span class="h">♥</span> par Esquie</p>
+    <p class="disclaimer">Clarity est un outil de pré-traitement vidéo local. Il n'est pas affilié à TikTok et ne modifie pas l'application TikTok. Utilise-le avec tes propres vidéos, dans le respect des conditions d'utilisation des plateformes.</p>
+  </div>
+</footer>
+
+<script>
+// nav scroll state
+const nav=document.getElementById('nav');
+addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>20));
+
+// reveal on scroll
+const io=new IntersectionObserver((es)=>es.forEach((e,i)=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach((el,i)=>{el.style.transitionDelay=(i%4*60)+'ms';io.observe(el);});
+
+// feature spotlight follow cursor
+document.querySelectorAll('.feat').forEach(f=>{
+  f.addEventListener('mousemove',e=>{const r=f.getBoundingClientRect();f.style.setProperty('--mx',(e.clientX-r.left)+'px');f.style.setProperty('--my',(e.clientY-r.top)+'px');});
+});
+
+// before/after comparison slider
+const compare=document.getElementById('compare'),beforeLayer=document.getElementById('beforeLayer'),handle=document.getElementById('handle');
+let dragging=false;
+function setPos(x){
+  const r=compare.getBoundingClientRect();
+  let p=((x-r.left)/r.width)*100;p=Math.max(2,Math.min(98,p));
+  beforeLayer.style.clipPath='inset(0 '+(100-p)+'% 0 0)';
+  handle.style.left=p+'%';
+}
+compare.addEventListener('mousedown',e=>{dragging=true;setPos(e.clientX);});
+addEventListener('mousemove',e=>{if(dragging)setPos(e.clientX);});
+addEventListener('mouseup',()=>dragging=false);
+compare.addEventListener('touchstart',e=>setPos(e.touches[0].clientX),{passive:true});
+compare.addEventListener('touchmove',e=>setPos(e.touches[0].clientX),{passive:true});
+
+// faq accordion
+document.querySelectorAll('.faq button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    const f=b.parentElement,ans=f.querySelector('.ans'),open=f.classList.contains('open');
+    document.querySelectorAll('.faq').forEach(x=>{x.classList.remove('open');x.querySelector('.ans').style.maxHeight=null;});
+    if(!open){f.classList.add('open');ans.style.maxHeight=ans.scrollHeight+'px';}
+  });
+});
+
+/* ========================================================================
+   CLARITY — patcher MP4 en local (port JS de la logique Python d'Esquie)
+   Modifie le champ timescale des atomes mvhd / mdhd. Aucun upload.
+   ======================================================================== */
+const drop=document.getElementById('drop'),fileInput=document.getElementById('fileInput'),
+      fileNameEl=document.getElementById('fileName'),fpsInput=document.getElementById('fpsInput'),
+      patchBtn=document.getElementById('patchBtn'),patchStatus=document.getElementById('patchStatus');
+let currentFile=null;
+
+function setStatus(msg,kind){patchStatus.textContent=msg;patchStatus.className='patch-status'+(kind?' '+kind:'');}
+
+// recherche d'une sous-chaîne ASCII dans un Uint8Array
+function findBytes(data,str,from,to){
+  const n=str.length,end=Math.min(to,data.length)-n;
+  outer:for(let i=from;i<=end;i++){
+    for(let j=0;j<n;j++){if(data[i+j]!==str.charCodeAt(j))continue outer;}
+    return i;
+  }
+  return -1;
+}
+
+// lit une petite tranche du fichier en ArrayBuffer
+async function readSlice(file,start,end){
+  const blob=file.slice(start,Math.min(end,file.size));
+  if(blob.arrayBuffer)return await blob.arrayBuffer();
+  return await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error||new Error("Lecture impossible"));r.readAsArrayBuffer(blob);});
+}
+
+/* Scanne le fichier PAR MORCEAUX (jamais tout en mémoire) pour trouver les
+   atomes mvhd/mdhd, et calcule les nouveaux octets de timescale.
+   Renvoie une liste de {offset, bytes} (4 octets à réécrire dans le fichier). */
+async function scanPatches(file,fpsIn,onProgress){
+  const scaleTs=30.0/fpsIn;
+  const CHUNK=16*1024*1024;   // 16 Mo lus à la fois
+  const PAD=256;              // marge pour les atomes à cheval sur 2 morceaux
+  const keys=['mvhd','mdhd'];
+  const patches=[];
+  let pos=0;
+  while(pos<file.size){
+    const readStart=Math.max(0,pos-PAD);
+    const readEnd=Math.min(file.size,pos+CHUNK+PAD);
+    const buf=await readSlice(file,readStart,readEnd);
+    const data=new Uint8Array(buf);
+    const view=new DataView(buf);
+    const scanTo=Math.min(pos+CHUNK,file.size)-readStart; // borne locale
+    for(const name of keys){
+      let s=Math.max(0,pos-readStart);
+      while(true){
+        const li=findBytes(data,name,s,scanTo+name.length);
+        if(li<0||li>=scanTo)break;
+        s=li+name.length;
+        const hdr=li-4;
+        if(hdr<0)continue;
+        const size=view.getUint32(hdr,false);
+        const ver=data[hdr+8];
+        let tsOff;
+        if(ver===0)tsOff=hdr+20;
+        else if(ver===1)tsOff=hdr+28;
+        else continue;
+        if(tsOff+4>data.length)continue;        // octets suivants hors fenêtre
+        if(tsOff+4>hdr+size)continue;            // hors de l'atome
+        const oldTs=view.getUint32(tsOff,false);
+        const newTs=Math.floor(oldTs*scaleTs)>>>0;
+        const b=new Uint8Array(4);new DataView(b.buffer).setUint32(0,newTs,false);
+        patches.push({offset:readStart+tsOff,bytes:b});
+      }
+    }
+    pos+=CHUNK;
+    if(onProgress)onProgress(Math.min(100,Math.round(pos/file.size*100)));
+    await new Promise(r=>setTimeout(r,0)); // garde l'UI réactive
+  }
+  return patches;
+}
+
+/* Reconstruit le fichier de sortie en assemblant des tranches du fichier
+   d'origine (qui restent sur le disque) + les 4 octets modifiés.
+   Aucune copie complète en mémoire. */
+function buildOutputBlob(file,patches){
+  patches.sort((a,b)=>a.offset-b.offset);
+  const parts=[];let cursor=0;
+  for(const p of patches){
+    if(p.offset>cursor)parts.push(file.slice(cursor,p.offset));
+    parts.push(p.bytes);
+    cursor=p.offset+p.bytes.length;
+  }
+  if(cursor<file.size)parts.push(file.slice(cursor));
+  return new Blob(parts,{type:'video/mp4'});
+}
+
+function selectFile(file){
+  if(!file)return;
+  const ok=/\.(mp4|mov)$/i.test(file.name)||/mp4|quicktime/.test(file.type);
+  if(!ok){setStatus("Format non supporté — choisis un .mp4",'err');return;}
+  currentFile=file;
+  fileNameEl.textContent=file.name;
+  drop.classList.add('has');
+  const mb=(file.size/1048576).toFixed(file.size>1073741824?1:0);
+  const sz=file.size>1073741824?(file.size/1073741824).toFixed(2)+' Go':mb+' Mo';
+  drop.innerHTML='Fichier prêt : <b>'+file.name+'</b> · '+sz;
+  patchBtn.disabled=false;
+  setStatus('Prêt à patcher','');
+}
+
+drop.addEventListener('click',()=>fileInput.click());
+fileInput.addEventListener('change',e=>selectFile(e.target.files[0]));
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag');}));
+drop.addEventListener('drop',e=>{if(e.dataTransfer.files.length)selectFile(e.dataTransfer.files[0]);});
+
+patchBtn.addEventListener('click',async()=>{
+  if(!currentFile){setStatus("Choisis d'abord un fichier",'err');return;}
+  const fps=parseFloat(String(fpsInput.value).replace(',','.'));
+  if(!fps||fps<=0){setStatus('FPS invalide','err');return;}
+  patchBtn.disabled=true;
+  setStatus('Analyse du fichier… 0%','work');
+  try{
+    const patches=await scanPatches(currentFile,fps,p=>setStatus('Analyse du fichier… '+p+'%','work'));
+    if(patches.length===0)throw new Error("Aucun atome mvhd ou mdhd trouvé à patcher.");
+    setStatus('Génération du fichier…','work');
+    await new Promise(r=>setTimeout(r,30));
+    const blob=buildOutputBlob(currentFile,patches);
+    const url=URL.createObjectURL(blob);
+    const outName=currentFile.name.replace(/\.(mp4|mov)$/i,'')+'_30fps.mp4';
+    const a=document.createElement('a');
+    a.href=url;a.download=outName;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    setStatus('✓ '+outName+' téléchargé ('+patches.length+' atomes patchés)','ok');
+  }catch(err){
+    setStatus('Erreur : '+err.message,'err');
+  }finally{
+    patchBtn.disabled=false;
+  }
+});
+</script>
+</body>
+</html>

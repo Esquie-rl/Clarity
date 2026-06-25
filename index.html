@@ -258,8 +258,10 @@ footer .disclaimer{color:var(--faint);font-size:12px;max-width:560px;margin:22px
         <div class="drop" id="drop">Déposez votre fichier MP4 ici ou <b>Parcourir</b></div>
         <input type="file" id="fileInput" accept="video/mp4,video/quicktime,.mp4,.mov" hidden>
         <div class="app-row"><span class="lab">Fichier</span><span class="val" id="fileName">—</span></div>
+        <div class="app-row toggle on" id="fullToggle"><span class="lab">Patch complet TikTok <span style="color:var(--faint)">(injection ×10)</span></span><span class="val"><span class="sw"></span><span id="fullToggleTxt">activé</span></span></div>
+        <div class="opt-note" id="fullNote">Réplique exacte du patch qui marche : retire la piste timecode, nettoie les métadonnées et injecte des samples factices (×10) pour que TikTok traite la vidéo en meilleure qualité. Aucun ré-encodage, aucune perte, lecture fluide sur PC.</div>
         <div class="app-row toggle on" id="metaToggle"><span class="lab">Nettoyer les métadonnées</span><span class="val"><span class="sw"></span><span id="metaToggleTxt">activé</span></span></div>
-        <div class="opt-note">Recommandé. Efface les traces du logiciel de montage. N'altère pas la vidéo — lecture 100% fluide sur PC.</div>
+        <div class="opt-note" id="metaNote">Recommandé. Efface les traces du logiciel de montage. N'altère pas la vidéo — lecture 100% fluide sur PC.</div>
         <div class="app-row toggle" id="fpsToggle"><span class="lab">Patch FPS (timescale)</span><span class="val"><span class="sw"></span><span id="fpsToggleTxt">désactivé</span></span></div>
         <div class="opt-note warn" id="fpsNote">⚠ Astuce upload TikTok uniquement. Modifie la base de temps des atomes → la vidéo peut <b>saccader à la lecture sur PC</b> (VLC, lecteur Windows). Laisse désactivé pour tester la fluidité.</div>
         <div class="app-row" id="fpsRow"><span class="lab">FPS source</span><input class="fps-input" id="fpsInput" type="number" value="60" min="1" max="240" step="1"></div>
@@ -451,9 +453,22 @@ const drop=document.getElementById('drop'),fileInput=document.getElementById('fi
       fpsToggle=document.getElementById('fpsToggle'),metaToggle=document.getElementById('metaToggle'),
       fpsToggleTxt=document.getElementById('fpsToggleTxt'),metaToggleTxt=document.getElementById('metaToggleTxt'),
       cropToggle=document.getElementById('cropToggle'),cropToggleTxt=document.getElementById('cropToggleTxt'),
-      reformatNote=document.getElementById('reformatNote');
+      reformatNote=document.getElementById('reformatNote'),
+      fullToggle=document.getElementById('fullToggle'),fullToggleTxt=document.getElementById('fullToggleTxt'),
+      metaNote=document.getElementById('metaNote');
 let currentFile=null;
 function setStatus(msg,kind){patchStatus.textContent=msg;patchStatus.className='patch-status'+(kind?' '+kind:'');}
+// En mode "patch complet", les options du mode simple sont masquées (le patch
+// complet fait déjà le nettoyage métadonnées + retrait timecode).
+function syncSimpleRows(){
+  const hide=fullToggle.classList.contains('on');
+  [metaToggle,metaNote,fpsToggle,fpsNote,fpsRow].forEach(el=>{el.style.display=hide?'none':'';});
+}
+fullToggle.addEventListener('click',()=>{
+  const on=fullToggle.classList.toggle('on');
+  fullToggleTxt.textContent=on?'activé':'désactivé';
+  syncSimpleRows();
+});
 // toggle métadonnées (simple on/off)
 metaToggle.addEventListener('click',()=>{metaToggle.classList.toggle('on');metaToggleTxt.textContent=metaToggle.classList.contains('on')?'activé':'désactivé';});
 // toggle FPS : montre l'avertissement quand activé
@@ -467,6 +482,7 @@ cropToggle.addEventListener('click',()=>{
   cropToggleTxt.textContent=on?'activé':'désactivé';
   reformatNote.classList.toggle('hidden',!on);
 });
+syncSimpleRows(); // état initial (patch complet activé par défaut)
 
 // lit une tranche du fichier en ArrayBuffer (le fichier reste sur le disque)
 async function readSlice(file,start,end){
@@ -571,6 +587,126 @@ function buildOutputBlob(file,patches){
   return new Blob(parts,{type:'video/mp4'});
 }
 
+/* ========================================================================
+   PATCH COMPLET (réplique du patch itzcrih qui fonctionne sur TikTok).
+   100% local, pur JS, AUCUN ré-encodage, AUCUNE perte :
+     • retire la piste timecode (tmcd),
+     • nettoie les métadonnées (udta->free, dates=0, compressorname=0),
+     • INJECTE des samples factices de 8 octets (NAL vides) dans la piste
+       vidéo pour multiplier le nombre d'échantillons par `mult` (×10),
+       ce qui pousse TikTok à transcoder en meilleure qualité.
+   Reconstruit l'arbre `moov` et réassemble le fichier (ftyp + mdat' + moov')
+   par tranches — le flux vidéo/audio n'est jamais copié en mémoire.
+   ======================================================================== */
+const wU32=(arr,o,v)=>{arr[o]=(v>>>24)&255;arr[o+1]=(v>>>16)&255;arr[o+2]=(v>>>8)&255;arr[o+3]=v&255;};
+async function clarityFullPatch(file,report,mult){
+  mult=mult||10;
+  const CONT=new Set(['moov','trak','mdia','minf','stbl','edts','dinf','udta','mvex']);
+  report&&report('Analyse de la structure MP4…');
+  // 1) boîtes top-level (lecture des en-têtes seulement)
+  const tops=[];{let pos=0;while(pos+8<=file.size){
+    const ab=await readSlice(file,pos,pos+16);const u=new Uint8Array(ab),dv=new DataView(ab);
+    let s=dv.getUint32(0,false),hs=8;const t=FOURCC(u,4);
+    if(s===1){s=dv.getUint32(8,false)*4294967296+dv.getUint32(12,false);hs=16;}else if(s===0)s=file.size-pos;
+    tops.push({t,p:pos,hs,s});if(s<8)break;pos+=s;}}
+  const ftyp=tops.find(x=>x.t==='ftyp'),moovB=tops.find(x=>x.t==='moov'),mdatB=tops.find(x=>x.t==='mdat');
+  if(!ftyp||!moovB||!mdatB)throw new Error("Structure MP4 inattendue (ftyp/moov/mdat).");
+  const origMdatDataStart=mdatB.p+mdatB.hs, origMdatDataSize=mdatB.s-mdatB.hs;
+  // 2) charge le moov (petit) en mémoire
+  report&&report('Lecture de l’index vidéo…');
+  const moov=new Uint8Array(await readSlice(file,moovB.p,moovB.p+moovB.s));
+  const dvm=new DataView(moov.buffer,moov.byteOffset,moov.byteLength);
+  const rd32=o=>dvm.getUint32(o,false);
+  // 3) édits in-place : zero dates, udta->free, compressorname=0
+  (function scan(s,e){let p=s;while(p+8<=e){
+    let sz=rd32(p),hs=8;const t=FOURCC(moov,p+4);
+    if(sz===1){sz=dvm.getUint32(p+8,false)*4294967296+dvm.getUint32(p+12,false);hs=16;}else if(sz===0)sz=e-p;
+    const c=p+hs;
+    if(t==='mvhd'||t==='mdhd'||t==='tkhd'){const ver=moov[c];const len=ver===1?8:4;moov.fill(0,c+4,c+4+2*len);}
+    else if(t==='udta'){moov[p+4]=0x66;moov[p+5]=0x72;moov[p+6]=0x65;moov[p+7]=0x65;}
+    else if(t==='avc1'||t==='avc3'||t==='hvc1'||t==='hev1'||t==='mp4v'){moov.fill(0,c+42,c+42+32);}
+    if(t==='stsd')scan(c+8,p+sz);else if(CONT.has(t))scan(c,p+sz);
+    if(sz<8)break;p+=sz;}})(8,moov.length);
+  // 4) parse moov en arbre
+  function parse(s,e){const out=[];let p=s;while(p+8<=e){
+    let sz=rd32(p),hs=8;const t=FOURCC(moov,p+4);
+    if(sz===1){sz=dvm.getUint32(p+8,false)*4294967296+dvm.getUint32(p+12,false);hs=16;}else if(sz===0)sz=e-p;
+    const node={t,hs};
+    if(CONT.has(t))node.children=parse(p+hs,p+sz);else node.raw=moov.subarray(p,p+sz);
+    out.push(node);if(sz<8)break;p+=sz;}return out;}
+  const tree=parse(8,moov.length);
+  const handlerOf=trak=>{const md=trak.children.find(x=>x.t==='mdia');if(!md)return null;const hd=md.children.find(x=>x.t==='hdlr');if(!hd)return null;return FOURCC(hd.raw,hd.hs+8);};
+  const stblOf=trak=>trak.children.find(x=>x.t==='mdia').children.find(x=>x.t==='minf').children.find(x=>x.t==='stbl');
+  const leaf=(stbl,t)=>stbl.children.find(x=>x.t===t);
+  // 5) retire la piste timecode
+  const moovChildren=tree.filter(x=>!(x.t==='trak'&&handlerOf(x)==='tmcd'));
+  const vtrak=moovChildren.find(x=>x.t==='trak'&&handlerOf(x)==='vide');
+  if(!vtrak)throw new Error("Piste vidéo introuvable.");
+  const atraks=moovChildren.filter(x=>x.t==='trak'&&handlerOf(x)==='soun');
+  const vstbl=stblOf(vtrak);
+  const vstsz=leaf(vstbl,'stsz'),vstts=leaf(vstbl,'stts'),vstsc=leaf(vstbl,'stsc'),vstco=leaf(vstbl,'stco');
+  if(!vstco)throw new Error("Piste vidéo en co64 (≥4 Go) non supportée.");
+  const rdL=(lf,o)=>{const d=new DataView(lf.raw.buffer,lf.raw.byteOffset,lf.raw.byteLength);return d.getUint32(o,false);};
+  const realFrames=rdL(vstsz,vstsz.hs+8);
+  const dummyN=realFrames*(mult-1);
+  // 6) layout sortie : ftyp + mdat' + moov'  (offsets décalés de `delta`)
+  const newMdatDataStart=ftyp.s+8;
+  const delta=newMdatDataStart-origMdatDataStart;
+  const dummyChunkOffset=newMdatDataStart+origMdatDataSize;
+  // données factices : dummyN × (00 00 00 04 00 00 00 00)
+  const dummyData=new Uint8Array(dummyN*8);
+  for(let i=0;i<dummyN;i++)dummyData[i*8+3]=4;
+  // reconstructions
+  function newStco(lf,appendOff){const hs=lf.hs;const cnt=rdL(lf,hs+4);const total=cnt+(appendOff!=null?1:0);
+    const pl=new Uint8Array(8+4*total);pl.set(lf.raw.subarray(hs,hs+4),0);wU32(pl,4,total);
+    for(let i=0;i<cnt;i++)wU32(pl,8+4*i,(rdL(lf,hs+8+4*i)+delta)>>>0);
+    if(appendOff!=null)wU32(pl,8+4*cnt,appendOff>>>0);return {t:'stco',payload:pl};}
+  function newStsz(lf){const hs=lf.hs;const cnt=rdL(lf,hs+8);const total=cnt+dummyN;
+    const pl=new Uint8Array(12+4*total);wU32(pl,8,total);
+    for(let i=0;i<cnt;i++)wU32(pl,12+4*i,rdL(lf,hs+12+4*i));
+    for(let i=0;i<dummyN;i++)wU32(pl,12+4*(cnt+i),8);return {t:'stsz',payload:pl};}
+  function newStts(lf){const hs=lf.hs;const cnt=rdL(lf,hs+4);const total=cnt+1;
+    const pl=new Uint8Array(8+8*total);wU32(pl,4,total);
+    for(let i=0;i<cnt*2;i++)wU32(pl,8+4*i,rdL(lf,hs+8+4*i));
+    wU32(pl,8+8*cnt,dummyN);wU32(pl,12+8*cnt,256);return {t:'stts',payload:pl};}
+  function newStsc(lf,newChunk){const hs=lf.hs;const cnt=rdL(lf,hs+4);const total=cnt+1;
+    const pl=new Uint8Array(8+12*total);wU32(pl,4,total);
+    for(let i=0;i<cnt*3;i++)wU32(pl,8+4*i,rdL(lf,hs+8+4*i));
+    const desc=cnt?rdL(lf,hs+8+12*(cnt-1)+8):1;
+    wU32(pl,8+12*cnt,newChunk);wU32(pl,12+12*cnt,dummyN);wU32(pl,16+12*cnt,desc);return {t:'stsc',payload:pl};}
+  const vChunks=rdL(vstco,vstco.hs+4);
+  const repl=(stbl,t,node)=>{stbl.children[stbl.children.findIndex(x=>x.t===t)]=node;};
+  repl(vstbl,'stsz',newStsz(vstsz));
+  repl(vstbl,'stts',newStts(vstts));
+  repl(vstbl,'stsc',newStsc(vstsc,vChunks+1));
+  repl(vstbl,'stco',newStco(vstco,dummyChunkOffset));
+  for(const at of atraks){const ast=stblOf(at);if(leaf(ast,'co64'))throw new Error("Piste audio en co64 non supportée.");const asc=leaf(ast,'stco');if(asc)repl(ast,'stco',newStco(asc,null));}
+  // 7) sérialisation moov'
+  report&&report('Reconstruction de l’index…');
+  function ser(node){
+    if(node.children){const body=concat(node.children.map(ser));const h=new Uint8Array(8);wU32(h,0,8+body.length);h.set(strBytes(node.t),4);return concat([h,body]);}
+    if(node.payload){const h=new Uint8Array(8);wU32(h,0,8+node.payload.length);h.set(strBytes(node.t),4);return concat([h,node.payload]);}
+    return node.raw;}
+  const strBytes=s=>Uint8Array.from(s,c=>c.charCodeAt(0));
+  function concat(arrs){let n=0;for(const a of arrs)n+=a.length;const out=new Uint8Array(n);let o=0;for(const a of arrs){out.set(a,o);o+=a.length;}return out;}
+  const moovBody=concat(moovChildren.map(ser));
+  const moovHead=new Uint8Array(8);wU32(moovHead,0,8+moovBody.length);moovHead.set(strBytes('moov'),4);
+  const moovOut=concat([moovHead,moovBody]);
+  // 8) mdat'
+  const newMdatSize=8+origMdatDataSize+dummyData.length;
+  if(newMdatSize>0xFFFFFFFF)throw new Error("Fichier trop grand (>4 Go) pour ce mode.");
+  const mdatHead=new Uint8Array(8);wU32(mdatHead,0,newMdatSize);mdatHead.set(strBytes('mdat'),4);
+  // 9) assemblage par tranches (le flux n'est jamais chargé entièrement)
+  report&&report('Génération du fichier…');
+  return new Blob([
+    file.slice(ftyp.p,ftyp.p+ftyp.s),
+    mdatHead,
+    file.slice(origMdatDataStart,origMdatDataStart+origMdatDataSize),
+    dummyData,
+    moovOut
+  ],{type:'video/mp4'});
+}
+
 function selectFile(file){
   if(!file)return;
   const ok=/\.(mp4|mov)$/i.test(file.name)||/mp4|quicktime/.test(file.type);
@@ -608,6 +744,22 @@ patchBtn.addEventListener('click',async()=>{
       const outName=currentFile.name.replace(/\.(mp4|mov)$/i,'')+'_clarity_1080x1920.mp4';
       downloadBlob(blob,outName);
       setStatus('✓ '+outName+' téléchargé — recadré 1080×1920 + métadonnées nettoyées','ok');
+    }catch(err){
+      setStatus('Erreur : '+err.message,'err');
+    }finally{
+      patchBtn.disabled=false;
+    }
+    return;
+  }
+
+  // ----- MODE PATCH COMPLET (réplique itzcrih : injection de samples ×10) -----
+  if(fullToggle.classList.contains('on')){
+    patchBtn.disabled=true;
+    try{
+      const blob=await clarityFullPatch(currentFile,(msg)=>setStatus(msg,'work'),10);
+      const outName=currentFile.name.replace(/\.(mp4|mov)$/i,'')+'_clarity.mp4';
+      downloadBlob(blob,outName);
+      setStatus('✓ '+outName+' téléchargé — patch complet (timecode retiré, métadonnées nettoyées, samples ×10)','ok');
     }catch(err){
       setStatus('Erreur : '+err.message,'err');
     }finally{

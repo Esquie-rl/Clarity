@@ -116,6 +116,9 @@ nav.scrolled .nav-inner{background:rgba(10,10,22,.72);backdrop-filter:blur(16px)
 .sw::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#fff;transition:.25s}
 .app-row.toggle.on .sw{background:var(--violet)}
 .app-row.toggle.on .sw::after{left:19px}
+.opt-note{font-size:12px;line-height:1.5;color:var(--faint);font-family:var(--mono);padding:0 4px;margin-top:-4px}
+.opt-note.warn{color:#E0A24E}
+.opt-note.hidden{display:none}
 .fps-input{width:90px;background:rgba(255,255,255,.06);border:1px solid var(--panel-border);border-radius:8px;color:var(--cyan);
   font-family:var(--mono);font-size:13px;text-align:center;padding:7px 8px;outline:none}
 .fps-input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(55,212,255,.18)}
@@ -177,10 +180,6 @@ nav.scrolled .nav-inner{background:rgba(10,10,22,.72);backdrop-filter:blur(16px)
   backdrop-filter:blur(16px);position:relative;overflow:hidden}
 .dl-card::after{content:"";position:absolute;width:420px;height:420px;border-radius:50%;background:var(--violet);filter:blur(110px);opacity:.25;top:-200px;left:50%;transform:translateX(-50%)}
 .dl-card h2{position:relative}
-.dl-os{display:flex;gap:14px;justify-content:center;margin:30px 0 20px;flex-wrap:wrap;position:relative}
-.os-pill{font-family:var(--mono);font-size:13px;padding:9px 16px;border-radius:10px;border:1px solid var(--panel-border);background:var(--panel);color:var(--muted);display:inline-flex;align-items:center;gap:8px}
-.os-pill svg{width:16px;height:16px}
-.os-pill.soon{opacity:.5}
 .dl-note{font-size:13px;color:var(--faint);margin-top:18px;font-family:var(--mono);position:relative}
 /* ---------- faq ---------- */
 .faq-list{max-width:740px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
@@ -253,15 +252,19 @@ footer .disclaimer{color:var(--faint);font-size:12px;max-width:560px;margin:22px
         <span class="win-dot" style="background:#ff5f57"></span>
         <span class="win-dot" style="background:#febc2e"></span>
         <span class="win-dot" style="background:#28c840"></span>
-        <span class="win-title">Clarity — MP4 → Patch (FPS + métadonnées)</span>
+        <span class="win-title">Clarity — MP4 → Patch (lecture fluide PC)</span>
       </div>
       <div class="app-body">
         <div class="drop" id="drop">Déposez votre fichier MP4 ici ou <b>Parcourir</b></div>
         <input type="file" id="fileInput" accept="video/mp4,video/quicktime,.mp4,.mov" hidden>
         <div class="app-row"><span class="lab">Fichier</span><span class="val" id="fileName">—</span></div>
-        <div class="app-row"><span class="lab">FPS source</span><input class="fps-input" id="fpsInput" type="number" value="60" min="1" max="240" step="1"></div>
-        <div class="app-row toggle on" id="fpsToggle"><span class="lab">Patch FPS (timescale)</span><span class="val"><span class="sw"></span><span id="fpsToggleTxt">activé</span></span></div>
         <div class="app-row toggle on" id="metaToggle"><span class="lab">Nettoyer les métadonnées</span><span class="val"><span class="sw"></span><span id="metaToggleTxt">activé</span></span></div>
+        <div class="opt-note">Recommandé. Efface les traces du logiciel de montage. N'altère pas la vidéo — lecture 100% fluide sur PC.</div>
+        <div class="app-row toggle" id="fpsToggle"><span class="lab">Patch FPS (timescale)</span><span class="val"><span class="sw"></span><span id="fpsToggleTxt">désactivé</span></span></div>
+        <div class="opt-note warn" id="fpsNote">⚠ Astuce upload TikTok uniquement. Modifie la base de temps des atomes → la vidéo peut <b>saccader à la lecture sur PC</b> (VLC, lecteur Windows). Laisse désactivé pour tester la fluidité.</div>
+        <div class="app-row" id="fpsRow"><span class="lab">FPS source</span><input class="fps-input" id="fpsInput" type="number" value="60" min="1" max="240" step="1"></div>
+        <div class="app-row toggle" id="cropToggle"><span class="lab">Reformater en 1080×1920 <span style="color:var(--faint)">(recadrage auto)</span></span><span class="val"><span class="sw"></span><span id="cropToggleTxt">désactivé</span></span></div>
+        <div class="opt-note hidden" id="reformatNote">Recadre la zone utile (supprime les bandes noires) et l'agrandit en vertical plein cadre. Ré-encodage local via ffmpeg.wasm — plus lent, et nécessite de charger le moteur (~25 Mo) au premier lancement.</div>
         <button class="patch-btn" id="patchBtn" disabled>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           Patcher
@@ -304,19 +307,19 @@ footer .disclaimer{color:var(--faint);font-size:12px;max-width:560px;margin:22px
       <p>Dépose ton MP4 dans la fenêtre ou clique sur Parcourir. Aucune config compliquée.</p>
     </div>
     <div class="feat reveal">
-      <div class="feat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
-      <h3>Patch en 1 clic</h3>
-      <p>Un seul bouton. Clarity ajuste le conteneur de ta vidéo dans un format que TikTok recompresse beaucoup moins.</p>
-    </div>
-    <div class="feat reveal">
-      <div class="feat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div>
-      <h3>Choix du FPS</h3>
-      <p>Force le framerate de ton choix (24, 30, 60…) pour un rendu fluide et stable à l'upload.</p>
-    </div>
-    <div class="feat reveal">
       <div class="feat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h10"/><line x1="18" y1="15" x2="22" y2="19"/><line x1="22" y1="15" x2="18" y2="19"/></svg></div>
       <h3>Métadonnées nettoyées</h3>
-      <p>Clarity efface les traces de ton logiciel de montage (DaVinci, Premiere…) et les dates de création. TikTok ne détecte plus une vidéo « exportée » et recompresse moins.</p>
+      <p>Clarity efface les traces de ton logiciel de montage (DaVinci, Premiere…) et les dates de création. TikTok ne détecte plus une vidéo « exportée » et recompresse moins. Sans toucher au flux : lecture fluide.</p>
+    </div>
+    <div class="feat reveal">
+      <div class="feat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+      <h3>Patch FPS optionnel</h3>
+      <p>L'astuce timescale qui réduit la recompression TikTok, désactivée par défaut car elle peut faire saccader la lecture sur PC. À toi de choisir.</p>
+    </div>
+    <div class="feat reveal">
+      <div class="feat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/></svg></div>
+      <h3>Reformatage 9:16</h3>
+      <p>Recadre automatiquement les vidéos avec bandes noires et les passe en 1080×1920 plein cadre, en local.</p>
     </div>
     <div class="feat reveal">
       <div class="feat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
@@ -326,7 +329,7 @@ footer .disclaimer{color:var(--faint);font-size:12px;max-width:560px;margin:22px
     <div class="feat reveal">
       <div class="feat-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
       <h3>Qualité préservée</h3>
-      <p>Aucun ré-encodage : le flux vidéo n'est pas retouché. Bitrate, résolution et netteté restent identiques à la source.</p>
+      <p>En mode patch, aucun ré-encodage : le flux vidéo n'est pas retouché. Bitrate, résolution et netteté restent identiques à la source.</p>
     </div>
   </div>
 </section>
@@ -344,7 +347,7 @@ footer .disclaimer{color:var(--faint);font-size:12px;max-width:560px;margin:22px
     <div class="step reveal">
       <div class="num">2</div>
       <h3>Clique sur Patch</h3>
-      <p>Clarity ajuste le timescale et efface les métadonnées identifiantes, puis t'enregistre la version optimisée. Aucun ré-encodage.</p>
+      <p>Clarity efface les métadonnées identifiantes et t'enregistre la version optimisée. Aucun ré-encodage, lecture fluide garantie sur PC.</p>
     </div>
     <div class="step reveal">
       <div class="num">3</div>
@@ -371,10 +374,11 @@ footer .disclaimer{color:var(--faint);font-size:12px;max-width:560px;margin:22px
   <div class="eyebrow reveal">FAQ</div>
   <h2 class="reveal">Questions fréquentes</h2>
   <div class="faq-list" style="margin-top:46px">
+    <div class="faq reveal"><button>Ma vidéo saccade quand je la lis sur PC, pourquoi ?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button><div class="ans"><p>C'est le « Patch FPS (timescale) » qui en est la cause : il modifie la base de temps de la vidéo, ce que certains lecteurs PC (VLC, lecteur Windows) interprètent mal. Pour une lecture parfaitement fluide sur PC, laisse cette option <b>désactivée</b> — c'est le réglage par défaut. Garde seulement « Nettoyer les métadonnées ».</p></div></div>
     <div class="faq reveal"><button>Est-ce que mes vidéos sont envoyées quelque part ?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button><div class="ans"><p>Non. Clarity fonctionne entièrement en local sur ton PC. Aucune vidéo, aucun fichier et aucune donnée ne sont envoyés sur internet — le patch se fait directement dans le navigateur.</p></div></div>
-    <div class="faq reveal"><button>Pourquoi TikTok compresse mes vidéos ?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button><div class="ans"><p>TikTok ré-encode chaque upload pour réduire la taille des fichiers, et applique une compression plus agressive quand il détecte une vidéo visiblement « exportée » d'un logiciel de montage. Clarity efface ces traces et ajuste le conteneur pour limiter fortement cette recompression.</p></div></div>
-    <div class="faq reveal"><button>Qu'est-ce que « nettoyer les métadonnées » fait exactement ?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button><div class="ans"><p>Clarity supprime du conteneur les informations qui identifient ton montage : nom du logiciel d'export (DaVinci Resolve, Premiere…), encodeur, dates de création. Le flux vidéo lui-même n'est jamais touché, donc zéro perte de qualité.</p></div></div>
-    <div class="faq reveal"><button>Quels formats sont supportés ?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button><div class="ans"><p>Les fichiers MP4 (et MOV/QuickTime). Tu peux régler le FPS cible et activer/désactiver chaque option avant de patcher.</p></div></div>
+    <div class="faq reveal"><button>Pourquoi TikTok compresse mes vidéos ?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button><div class="ans"><p>TikTok ré-encode chaque upload pour réduire la taille des fichiers, et applique une compression plus agressive quand il détecte une vidéo visiblement « exportée » d'un logiciel de montage. Clarity efface ces traces pour limiter cette recompression.</p></div></div>
+    <div class="faq reveal"><button>Qu'est-ce que « nettoyer les métadonnées » fait exactement ?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button><div class="ans"><p>Clarity supprime du conteneur les informations qui identifient ton montage : nom du logiciel d'export (DaVinci Resolve, Premiere…), encodeur, dates de création. Le flux vidéo lui-même n'est jamais touché, donc zéro perte de qualité et lecture parfaitement fluide.</p></div></div>
+    <div class="faq reveal"><button>À quoi sert « Reformater en 1080×1920 » ?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button><div class="ans"><p>Si ta vidéo est dans un conteneur paysage avec des bandes noires autour du contenu vertical, ce mode détecte la zone utile, supprime les bandes et l'agrandit en 1080×1920 plein cadre. Contrairement au patch instantané, il ré-encode la vidéo — toujours en local (ffmpeg.wasm, aucun upload), mais c'est plus lent et le moteur (~25 Mo) se charge au premier lancement.</p></div></div>
     <div class="faq reveal"><button>Est-ce que c'est gratuit ?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button><div class="ans"><p>Oui, totalement gratuit et sans inscription. Dépose, patche, poste.</p></div></div>
   </div>
 </section>
@@ -423,30 +427,46 @@ document.querySelectorAll('.faq button').forEach(b=>{
   });
 });
 /* ========================================================================
-   CLARITY — patcher MP4 100% local (aucun upload, aucun ré-encodage)
+   CLARITY — patcher MP4 100% local (aucun upload)
 
-   Deux patchs, appliqués en édition d'octets SUR PLACE dans l'atome `moov`
-   (les tailles ne changent jamais → aucun offset cassé, aucune copie du
-   flux vidéo, donc zéro perte de qualité) :
+   Mode PATCH (par défaut, aucun ré-encodage, lecture fluide sur PC) :
+   édition d'octets SUR PLACE dans l'atome `moov` (les tailles ne changent
+   jamais → aucun offset cassé, aucune copie du flux vidéo, zéro perte) :
+     • MÉTA (activé par défaut) — neutralise les métadonnées identifiantes :
+       le bloc `udta` (logiciel d'export, encodeur) est renommé en `free`,
+       les dates de création/modification (mvhd/tkhd/mdhd) remises à zéro,
+       et le `compressorname` du sample entry vidéo effacé. N'altère PAS le
+       flux → la vidéo reste parfaitement fluide à la lecture.
+     • FPS (désactivé par défaut) — divise le timescale des en-têtes
+       mvhd/mdhd (astuce upload TikTok). ATTENTION : modifie la base de
+       temps → peut faire SACCADER la lecture sur un lecteur PC. À n'activer
+       que pour l'upload, pas pour visionner sur PC.
 
-     1) FPS  — divise le timescale des en-têtes mvhd/mdhd (truc "30 fps"
-               qui limite la recompression TikTok).
-     2) MÉTA — neutralise les métadonnées identifiantes : le bloc `udta`
-               (logiciel d'export, encodeur, commentaires) est renommé en
-               `free` (= espace ignoré), et les dates de création /
-               modification des en-têtes mvhd/tkhd/mdhd sont remises à zéro.
-               C'est l'équivalent navigateur de `ffmpeg -map_metadata -1`.
+   Mode REFORMATAGE 9:16 (toggle séparé) : ré-encodage local via ffmpeg.wasm.
    ======================================================================== */
 const drop=document.getElementById('drop'),fileInput=document.getElementById('fileInput'),
       fileNameEl=document.getElementById('fileName'),fpsInput=document.getElementById('fpsInput'),
+      fpsRow=document.getElementById('fpsRow'),fpsNote=document.getElementById('fpsNote'),
       patchBtn=document.getElementById('patchBtn'),patchStatus=document.getElementById('patchStatus'),
       fpsToggle=document.getElementById('fpsToggle'),metaToggle=document.getElementById('metaToggle'),
-      fpsToggleTxt=document.getElementById('fpsToggleTxt'),metaToggleTxt=document.getElementById('metaToggleTxt');
+      fpsToggleTxt=document.getElementById('fpsToggleTxt'),metaToggleTxt=document.getElementById('metaToggleTxt'),
+      cropToggle=document.getElementById('cropToggle'),cropToggleTxt=document.getElementById('cropToggleTxt'),
+      reformatNote=document.getElementById('reformatNote');
 let currentFile=null;
 function setStatus(msg,kind){patchStatus.textContent=msg;patchStatus.className='patch-status'+(kind?' '+kind:'');}
-// toggles
-function wireToggle(el,txt){el.addEventListener('click',()=>{el.classList.toggle('on');txt.textContent=el.classList.contains('on')?'activé':'désactivé';});}
-wireToggle(fpsToggle,fpsToggleTxt);wireToggle(metaToggle,metaToggleTxt);
+// toggle métadonnées (simple on/off)
+metaToggle.addEventListener('click',()=>{metaToggle.classList.toggle('on');metaToggleTxt.textContent=metaToggle.classList.contains('on')?'activé':'désactivé';});
+// toggle FPS : montre l'avertissement quand activé
+fpsToggle.addEventListener('click',()=>{
+  const on=fpsToggle.classList.toggle('on');
+  fpsToggleTxt.textContent=on?'activé':'désactivé';
+});
+// toggle reformatage : affiche sa note
+cropToggle.addEventListener('click',()=>{
+  const on=cropToggle.classList.toggle('on');
+  cropToggleTxt.textContent=on?'activé':'désactivé';
+  reformatNote.classList.toggle('hidden',!on);
+});
 
 // lit une tranche du fichier en ArrayBuffer (le fichier reste sur le disque)
 async function readSlice(file,start,end){
@@ -570,11 +590,36 @@ fileInput.addEventListener('change',e=>selectFile(e.target.files[0]));
 ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag');}));
 drop.addEventListener('drop',e=>{if(e.dataTransfer.files.length)selectFile(e.dataTransfer.files[0]);});
 
+function downloadBlob(blob,name){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+
 patchBtn.addEventListener('click',async()=>{
   if(!currentFile){setStatus("Choisis d'abord un fichier",'err');return;}
+
+  // ----- MODE REFORMATAGE 9:16 (ré-encodage local via ffmpeg.wasm) -----
+  if(cropToggle.classList.contains('on')){
+    patchBtn.disabled=true;
+    try{
+      if(typeof window.clarityReformat!=='function')throw new Error("Moteur de reformatage indisponible (connexion requise au 1er lancement).");
+      const blob=await window.clarityReformat(currentFile,(msg)=>setStatus(msg,'work'));
+      const outName=currentFile.name.replace(/\.(mp4|mov)$/i,'')+'_clarity_1080x1920.mp4';
+      downloadBlob(blob,outName);
+      setStatus('✓ '+outName+' téléchargé — recadré 1080×1920 + métadonnées nettoyées','ok');
+    }catch(err){
+      setStatus('Erreur : '+err.message,'err');
+    }finally{
+      patchBtn.disabled=false;
+    }
+    return;
+  }
+
+  // ----- MODE PATCH INSTANTANÉ (édition d'octets, sans ré-encodage) -----
   const fps=parseFloat(String(fpsInput.value).replace(',','.'));
-  const opts={fps:fps,meta:metaToggle.classList.contains('on'),doFps:fpsToggle.classList.contains('on')};
-  opts.fps=opts.doFps?fps:0; // 0 => pas de patch fps
+  const doFps=fpsToggle.classList.contains('on');
+  const opts={fps:doFps?fps:0,meta:metaToggle.classList.contains('on')};
   if(opts.fps&&(!fps||fps<=0)){setStatus('FPS invalide','err');return;}
   if(!opts.fps&&!opts.meta){setStatus('Active au moins une option','err');return;}
   patchBtn.disabled=true;
@@ -585,12 +630,9 @@ patchBtn.addEventListener('click',async()=>{
     setStatus('Génération du fichier…','work');
     await new Promise(r=>setTimeout(r,30));
     const blob=buildOutputBlob(currentFile,patches);
-    const url=URL.createObjectURL(blob);
     const outName=currentFile.name.replace(/\.(mp4|mov)$/i,'')+'_clarity.mp4';
-    const a=document.createElement('a');
-    a.href=url;a.download=outName;document.body.appendChild(a);a.click();a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),60000);
-    const what=[opts.fps?'fps':null,opts.meta?'métadonnées nettoyées':null].filter(Boolean).join(' + ');
+    downloadBlob(blob,outName);
+    const what=[opts.meta?'métadonnées nettoyées':null,opts.fps?'fps':null].filter(Boolean).join(' + ');
     setStatus('✓ '+outName+' téléchargé — '+what+' ('+patches.length+' modifs)','ok');
   }catch(err){
     setStatus('Erreur : '+err.message,'err');
@@ -598,6 +640,91 @@ patchBtn.addEventListener('click',async()=>{
     patchBtn.disabled=false;
   }
 });
+</script>
+<!-- ===== Moteur de reformatage 9:16 : ffmpeg.wasm, 100% local ===== -->
+<script type="module">
+import { FFmpeg } from 'https://esm.sh/@ffmpeg/ffmpeg@0.12.10';
+import { fetchFile, toBlobURL } from 'https://esm.sh/@ffmpeg/util@0.12.1';
+
+const CORE='https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+let ffmpeg=null, loaded=false;
+
+async function ensureLoaded(report){
+  if(loaded)return ffmpeg;
+  ffmpeg=new FFmpeg();
+  ffmpeg.on('log',()=>{ /* logs ffmpeg (debug) */ });
+  report&&report('Chargement du moteur ffmpeg (~25 Mo, une seule fois)…');
+  await ffmpeg.load({
+    coreURL: await toBlobURL(`${CORE}/ffmpeg-core.js`,'text/javascript'),
+    wasmURL: await toBlobURL(`${CORE}/ffmpeg-core.wasm`,'application/wasm'),
+  });
+  loaded=true;
+  return ffmpeg;
+}
+
+// Détecte la zone utile (sans bandes noires) à partir d'une frame décodée.
+function detectContentBox(imgData,w,h){
+  const d=imgData.data, thr=24;
+  let x0=w,x1=-1,y0=h,y1=-1;
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const i=(y*w+x)*4;
+      if(Math.max(d[i],d[i+1],d[i+2])>thr){
+        if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y;
+      }
+    }
+  }
+  if(x1<0)return {x:0,y:0,w:w,h:h}; // tout noir -> pas de crop
+  let cx=x0, cy=y0, cw=(x1-x0+1), ch=(y1-y0+1);
+  cw-=cw%2; ch-=ch%2; cx-=cx%2; cy-=cy%2; // dimensions paires (yuv420p)
+  return {x:cx,y:cy,w:cw,h:ch};
+}
+
+// API exposée au script principal : reçoit un File, renvoie un Blob MP4 1080×1920.
+window.clarityReformat=async function(file,report){
+  const ff=await ensureLoaded(report);
+  const inName='in.mp4';
+  report&&report('Lecture du fichier…');
+  await ff.writeFile(inName, await fetchFile(file));
+
+  // 1) extrait une frame pour détecter le recadrage automatique
+  report&&report('Détection du recadrage…');
+  await ff.exec(['-ss','2','-i',inName,'-frames:v','1','probe.png']);
+  let box=null;
+  try{
+    const png=await ff.readFile('probe.png');
+    const bmp=await createImageBitmap(new Blob([png.buffer],{type:'image/png'}));
+    const cv=document.createElement('canvas'); cv.width=bmp.width; cv.height=bmp.height;
+    const ctx=cv.getContext('2d'); ctx.drawImage(bmp,0,0);
+    box=detectContentBox(ctx.getImageData(0,0,bmp.width,bmp.height),bmp.width,bmp.height);
+  }catch(e){ box=null; }
+
+  // 2) filtre : crop (si bandes détectées) puis scale plein cadre 1080×1920
+  let vf;
+  if(box && box.w>0 && box.h>0){
+    vf=`crop=${box.w}:${box.h}:${box.x}:${box.y},scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,format=yuv420p`;
+  }else{
+    vf=`scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,format=yuv420p`;
+  }
+
+  // 3) ré-encodage (progression réelle)
+  const onProg=({progress})=>{ const p=Math.max(0,Math.min(100,Math.round((progress||0)*100))); report&&report('Ré-encodage local… '+p+'% (peut prendre plusieurs minutes)'); };
+  ff.on('progress',onProg);
+  await ff.exec([
+    '-i',inName,
+    '-vf',vf,
+    '-c:v','libx264','-preset','ultrafast','-crf','20','-pix_fmt','yuv420p',
+    '-c:a','aac','-b:a','192k',
+    '-map_metadata','-1','-movflags','+faststart',
+    'out.mp4'
+  ]);
+  ff.off('progress',onProg);
+
+  report&&report('Finalisation…');
+  const out=await ff.readFile('out.mp4');
+  try{ await ff.deleteFile(inName); await ff.deleteFile('out.mp4'); await ff.deleteFile('probe.png'); }catch(e){}
+  return new Blob([out.buffer],{type:'video/mp4'});
+};
 </script>
 </body>
 </html>
